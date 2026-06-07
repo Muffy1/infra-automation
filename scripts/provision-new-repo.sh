@@ -300,7 +300,8 @@ for label in \
 do
   NAME=$(echo "$label" | cut -d'|' -f1)
   COLOR=$(echo "$label" | cut -d'|' -f2)
-  gh api -X POST "repos/$REPO/labels" -f name="$NAME" -f color="$COLOR" 2>/dev/null || true
+  out=$(gh api -X POST "repos/$REPO/labels" -f name="$NAME" -f color="$COLOR" 2>&1 || true)
+  if echo "$out" | grep -q "already_exists"; then : ; fi
 done
 
 echo "=== done. $REPO is fully provisioned. ==="
