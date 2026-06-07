@@ -1,0 +1,14 @@
+name: Close stale
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  stale:
+    uses: ./.github/workflows/stale.yml
+    with:
+      days-until-stale-issue: 60
+      days-until-close-issue: 14
+      days-until-stale-pr: 30
+      days-until-close-pr: 7

@@ -1,0 +1,56 @@
+# Path-based auto-labeling rules
+# Used by actions/labeler (called from auto-label.yml)
+
+area:frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/components/**"
+          - "app/**"
+          - "pages/**"
+          - "**/*.tsx"
+          - "**/*.jsx"
+          - "**/*.css"
+
+area:backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "api/**"
+          - "server/**"
+          - "kortix_system/**"
+          - "nexus/**"
+          - "**/main.py"
+
+area:docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**"
+          - "README.md"
+
+area:ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - "**/*.yml"
+          - "**/*.yaml"
+
+area:deps:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "package.json"
+          - "package-lock.json"
+          - "pnpm-lock.yaml"
+          - "requirements*.txt"
+          - "pyproject.toml"
+          - "Cargo.toml"
+          - "Cargo.lock"
+
+size:small:
+  - changed-files:
+      - any-glob-to-any-file: ["**/*"]
+    count: 5
+
+size:large:
+  - changed-files:
+      - any-glob-to-any-file: ["**/*"]
+    count: 30

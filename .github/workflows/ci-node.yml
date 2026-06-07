@@ -1,0 +1,107 @@
+name: CI — Node / TypeScript
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version"
+        type: string
+        default: "20"
+      package-manager:
+        description: "Package manager (pnpm | npm | yarn | bun)"
+        type: string
+        default: "pnpm"
+      cache:
+        description: "Enable dependency caching"
+        type: boolean
+        default: true
+      lint:
+        description: "Run linter"
+        type: boolean
+        default: true
+      test:
+        description: "Run tests"
+        type: boolean
+        default: true
+      build:
+        description: "Run build"
+        type: boolean
+        default: true
+      working-directory:
+        description: "Subdirectory containing package.json"
+        type: string
+        default: "."
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager }}
+
+      - name: Setup pnpm
+        if: inputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1
+
+      - name: Install
+        run: |
+          if [ "${{ inputs.package-manager }}" = "pnpm" ]; then pnpm install --frozen-lockfile;
+          elif [ "${{ inputs.package-manager }}" = "yarn" ]; then yarn install --frozen-lockfile;
+          elif [ "${{ inputs.package-manager }}" = "bun" ]; then bun install --frozen-lockfile;
+          else npm ci;
+          fi
+
+      - name: Lint
+        if: inputs.lint
+        run: |
+          if [ -f package.json ] && grep -q '"lint"' package.json; then
+            ${{ inputs.package-manager }} run lint
+          fi
+
+      - name: Test
+        if: inputs.test
+        run: |
+          if [ -f package.json ] && grep -q '"test"' package.json; then
+            ${{ inputs.package-manager }} test -- --reporter=verbose
+          fi
+
+      - name: Build
+        if: inputs.build
+        run: |
+          if [ -f package.json ] && grep -q '"build"' package.json; then
+            ${{ inputs.package-manager }} run build
+          fi
+
+      - name: Upload build artifacts
+        if: inputs.build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ inputs.working-directory }}
+          path: |
+            ${{ inputs.working-directory }}/.next
+            ${{ inputs.working-directory }}/dist
+            ${{ inputs.working-directory }}/build
+          if-no-files-found: ignore
+          retention-days: 7

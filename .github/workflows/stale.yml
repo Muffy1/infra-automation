@@ -1,0 +1,40 @@
+name: Stale — close abandoned issues and PRs
+
+on:
+  workflow_call:
+    inputs:
+      days-until-stale-issue:
+        type: number
+        default: 60
+      days-until-close-issue:
+        type: number
+        default: 14
+      days-until-stale-pr:
+        type: number
+        default: 30
+      days-until-close-pr:
+        type: number
+        default: 7
+      exempt-labels:
+        type: string
+        default: "pinned,security,epic"
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: ${{ inputs.days-until-stale-issue }}
+          days-before-close: ${{ inputs.days-until-close-issue }}
+          days-before-pr-stale: ${{ inputs.days-until-stale-pr }}
+          days-before-pr-close: ${{ inputs.days-until-close-pr }}
+          stale-issue-label: "stale"
+          stale-pr-label: "stale"
+          exempt-issue-labels: ${{ inputs.exempt-labels }}
+          exempt-pr-labels: ${{ inputs.exempt-labels }}
+          operations: "close, label"
+          remove-stale-when-updated: true

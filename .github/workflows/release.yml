@@ -1,0 +1,67 @@
+name: Release — tag and publish
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: "20"
+      package-manager:
+        type: string
+        default: "pnpm"
+      build-command:
+        type: string
+        default: "build"
+      publish-command:
+        type: string
+        default: ""
+      release-artifact-dir:
+        type: string
+        default: "dist"
+    secrets:
+      npm-token:
+        required: false
+      github-token:
+        required: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.github-token }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager }}
+
+      - name: Install
+        run: |
+          if [ "${{ inputs.package-manager }}" = "pnpm" ]; then pnpm install --frozen-lockfile
+          elif [ "${{ inputs.package-manager }}" = "yarn" ]; then yarn install --frozen-lockfile
+          else npm ci
+          fi
+
+      - name: Build
+        run: ${{ inputs.package-manager }} run ${{ inputs.build-command }}
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ inputs.release-artifact-dir }}/**/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+      - name: Publish (npm)
+        if: inputs.publish-command != ''
+        run: ${{ inputs.package-manager }} run ${{ inputs.publish-command }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.npm-token }}

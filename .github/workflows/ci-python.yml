@@ -1,0 +1,113 @@
+name: CI — Python
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version"
+        type: string
+        default: "3.12"
+      package-manager:
+        description: "pip | poetry | uv | pipenv"
+        type: string
+        default: "uv"
+      working-directory:
+        description: "Project root"
+        type: string
+        default: "."
+      lint:
+        type: boolean
+        default: true
+      type-check:
+        type: boolean
+        default: true
+      test:
+        type: boolean
+        default: true
+      build:
+        description: "Build sdist/wheel"
+        type: boolean
+        default: false
+    secrets:
+      pypi-token:
+        description: "Optional PyPI token for publish step"
+        required: false
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: ${{ inputs.package-manager }}
+
+      - name: Install uv
+        if: inputs.package-manager == 'uv'
+        run: pip install uv
+
+      - name: Install Poetry
+        if: inputs.package-manager == 'poetry'
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ inputs.package-manager }}" = "uv" ]; then
+            uv sync --frozen
+          elif [ "${{ inputs.package-manager }}" = "poetry" ]; then
+            poetry install --no-interaction
+          elif [ "${{ inputs.package-manager }}" = "pipenv" ]; then
+            pipenv sync --dev
+          else
+            pip install -r requirements.txt
+            [ -f requirements-dev.txt ] && pip install -r requirements-dev.txt
+          fi
+
+      - name: Ruff (lint + format)
+        if: inputs.lint
+        run: |
+          if command -v ruff >/dev/null 2>&1; then
+            ruff check .
+            ruff format --check .
+          else
+            pip install ruff && ruff check . && ruff format --check .
+          fi
+
+      - name: mypy
+        if: inputs.type-check
+        run: |
+          if [ -f mypy.ini ] || [ -f pyproject.toml ]; then
+            pip install mypy && mypy . || true
+          fi
+
+      - name: Test
+        if: inputs.test
+        run: |
+          if [ "${{ inputs.package-manager }}" = "uv" ]; then uv run pytest -v
+          elif [ "${{ inputs.package-manager }}" = "poetry" ]; then poetry run pytest -v
+          else python -m pytest -v
+          fi
+
+      - name: Build sdist + wheel
+        if: inputs.build
+        run: |
+          pip install build
+          python -m build
+
+      - name: Publish to PyPI
+        if: inputs.build && secrets.pypi-token
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.pypi-token }}

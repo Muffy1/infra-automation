@@ -1,0 +1,92 @@
+name: CI — Rust
+
+on:
+  workflow_call:
+    inputs:
+      rust-toolchain:
+        description: "Rust toolchain channel"
+        type: string
+        default: "stable"
+      working-directory:
+        description: "Cargo workspace root"
+        type: string
+        default: "."
+      fmt:
+        type: boolean
+        default: true
+      clippy:
+        type: boolean
+        default: true
+      test:
+        type: boolean
+        default: true
+      build:
+        type: boolean
+        default: true
+      release:
+        description: "Build in release mode"
+        type: boolean
+        default: false
+      targets:
+        description: "Comma-separated additional rustup targets"
+        type: string
+        default: ""
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust ${{ inputs.rust-toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+          components: rustfmt, clippy
+          targets: ${{ inputs.targets }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ inputs.working-directory }}
+
+      - name: Format check
+        if: inputs.fmt
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        if: inputs.clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Test
+        if: inputs.test
+        run: cargo test --all-features --locked
+
+      - name: Build
+        if: inputs.build
+        run: |
+          if [ "${{ inputs.release }}" = "true" ]; then
+            cargo build --release --locked
+          else
+            cargo build --locked
+          fi
+
+      - name: Upload binary
+        if: inputs.build
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-binary-${{ inputs.working-directory }}
+          path: |
+            ${{ inputs.working-directory }}/target/release/*
+            ${{ inputs.working-directory }}/target/debug/*
+          if-no-files-found: ignore
+          retention-days: 7
