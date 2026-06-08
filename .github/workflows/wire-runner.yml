@@ -1,0 +1,161 @@
+# wire-runner.yml — register the RTX 4080 Super desktop as a self-hosted runner
+# Trigger manually (workflow_dispatch) or via repository_dispatch from Make.com.
+#
+# What it does:
+#   1. Downloads + runs hardware-bridge/install.sh on the target machine via SSH
+#   2. Verifies GPU + CUDA presence
+#   3. Opens an issue summarising the registration (or updates an existing one)
+#
+# Required secrets (set in repo Settings → Secrets):
+#   RUNNER_SSH_KEY     — private SSH key for the desktop box (no passphrase)
+#   RUNNER_SSH_HOST    — hostname or IP of the desktop (e.g. "192.168.1.42")
+#   RUNNER_SSH_USER    — SSH username (e.g. "adam")
+#   RUNNER_REG_TOKEN   — GitHub runner registration token
+#                        Get from: Settings → Actions → Runners → New self-hosted runner
+#
+name: Wire Desktop Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_name:
+        description: 'Runner name (default: hostname of the target machine)'
+        required: false
+        default: 'rtx-4080-super'
+      labels:
+        description: 'Extra runner labels (comma-separated)'
+        required: false
+        default: 'gpu,cuda,rtx-4080-super,self-hosted'
+      target_repo:
+        description: 'Repo to register runner against (default: this repo)'
+        required: false
+        default: 'muffy86/infra-automation'
+
+  repository_dispatch:
+    types: [wire-runner]
+
+jobs:
+  register-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate secrets present
+        run: |
+          missing=""
+          [[ -z "${{ secrets.RUNNER_SSH_KEY }}" ]]   && missing="$missing RUNNER_SSH_KEY"
+          [[ -z "${{ secrets.RUNNER_SSH_HOST }}" ]]  && missing="$missing RUNNER_SSH_HOST"
+          [[ -z "${{ secrets.RUNNER_SSH_USER }}" ]]  && missing="$missing RUNNER_SSH_USER"
+          [[ -z "${{ secrets.RUNNER_REG_TOKEN }}" ]] && missing="$missing RUNNER_REG_TOKEN"
+          if [[ -n "$missing" ]]; then
+            echo "Missing secrets:$missing"
+            echo "Add them at: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          echo "All required secrets present."
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.RUNNER_SSH_KEY }}
+
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.RUNNER_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Push install.sh + run on desktop
+        env:
+          TARGET_REPO: ${{ github.event.inputs.target_repo || 'muffy86/infra-automation' }}
+          RUNNER_NAME: ${{ github.event.inputs.runner_name || 'rtx-4080-super' }}
+          RUNNER_LABELS: ${{ github.event.inputs.labels || 'gpu,cuda,rtx-4080-super,self-hosted' }}
+          REG_TOKEN: ${{ secrets.RUNNER_REG_TOKEN }}
+          SSH_HOST: ${{ secrets.RUNNER_SSH_HOST }}
+          SSH_USER: ${{ secrets.RUNNER_SSH_USER }}
+        run: |
+          # Copy install.sh to the target
+          scp hardware-bridge/install.sh \
+            "${SSH_USER}@${SSH_HOST}:/tmp/hw-bridge-install.sh"
+
+          # Execute remotely: install deps, register runner, start service
+          ssh "${SSH_USER}@${SSH_HOST}" bash /tmp/hw-bridge-install.sh \
+            --repo "$TARGET_REPO" \
+            --token "$REG_TOKEN" \
+            --name  "$RUNNER_NAME" \
+            --labels "$RUNNER_LABELS"
+
+          echo "Runner registration command sent."
+
+      - name: Verify runner appeared on GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 10
+          RUNNER_NAME="${{ github.event.inputs.runner_name || 'rtx-4080-super' }}"
+          OWNER_REPO="${{ github.event.inputs.target_repo || 'muffy86/infra-automation' }}"
+          OWNER="${OWNER_REPO%%/*}"
+          REPO="${OWNER_REPO##*/}"
+
+          RUNNER_STATE=$(gh api \
+            "repos/$OWNER/$REPO/actions/runners" \
+            --jq ".runners[] | select(.name==\"$RUNNER_NAME\") | .status" || echo "not_found")
+
+          echo "Runner status: $RUNNER_STATE"
+          if [[ "$RUNNER_STATE" == "online" ]]; then
+            echo "RUNNER_ONLINE=true" >> $GITHUB_ENV
+          else
+            echo "RUNNER_ONLINE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create / update tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUNNER_NAME="${{ github.event.inputs.runner_name || 'rtx-4080-super' }}"
+          STATUS_EMOJI=$([ "$RUNNER_ONLINE" = "true" ] && echo "✅" || echo "⚠️")
+          STATUS_MSG=$([ "$RUNNER_ONLINE" = "true" ] && echo "online" || echo "registered (may take 30s to show online)")
+
+          BODY="## Self-Hosted Runner Registration\n
+          | Field | Value |\n
+          |---|---|\n
+          | Runner name | \`$RUNNER_NAME\` |\n
+          | Labels | \`${{ github.event.inputs.labels || 'gpu,cuda,rtx-4080-super,self-hosted' }}\` |\n
+          | Target repo | \`${{ github.event.inputs.target_repo || 'muffy86/infra-automation' }}\` |\n
+          | Status | $STATUS_EMOJI $STATUS_MSG |\n
+          | Registered at | $(date -u +"%Y-%m-%dT%H:%M:%SZ") |\n
+          | Workflow run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |\n
+
+          ### Thermal Watcher\n
+          85°C ceiling watcher installed at \`~/.config/hardware-bridge/thermal-watch.sh\`\n
+          — added to crontab, fires on reboot.\n
+
+          ### Use in workflows\n
+          \`\`\`yaml\n
+          runs-on: [self-hosted, gpu, rtx-4080-super]\n
+          \`\`\`\n
+          "
+
+          # Check if tracking issue exists (labelled hardware-runner)
+          EXISTING=$(gh issue list \
+            --repo "${{ github.repository }}" \
+            --label hardware-runner \
+            --state open \
+            --json number \
+            --jq '.[0].number' || echo "")
+
+          if [[ -n "$EXISTING" ]]; then
+            gh issue comment "$EXISTING" \
+              --repo "${{ github.repository }}" \
+              --body "$(echo -e "$BODY")"
+            echo "Updated issue #$EXISTING"
+          else
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "[runner] RTX 4080 Super self-hosted runner" \
+              --label hardware-runner \
+              --body "$(echo -e "$BODY")"
+            echo "Created tracking issue"
+          fi
