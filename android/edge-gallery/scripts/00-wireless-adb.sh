@@ -27,4 +27,7 @@ CONNECT_ADDR="${1:-}"
 adb connect "$CONNECT_ADDR"
 
 adb wait-for-device
-echo "Connected. Device: $(adb shell getprop ro.product.model) (Android $(adb shell getprop ro.build.version.release))"
+# getprop output can carry trailing \r that corrupts the printed line
+MODEL=$(adb shell getprop ro.product.model | tr -d '\r')
+RELEASE=$(adb shell getprop ro.build.version.release | tr -d '\r')
+echo "Connected. Device: $MODEL (Android $RELEASE)"

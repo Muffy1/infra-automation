@@ -19,8 +19,10 @@ echo "==> Capturing for ${DURATION}s — interact with the app now (run a prompt
 adb logcat -c
 adb logcat -v time > "$OUT/logcat-full.txt" &
 LOGCAT_PID=$!
+trap 'kill "$LOGCAT_PID" 2>/dev/null || true' EXIT
 sleep "$DURATION"
 kill "$LOGCAT_PID" 2>/dev/null || true
+wait "$LOGCAT_PID" 2>/dev/null || true
 
 # inference-relevant lines (MediaPipe/LiteRT/XNNPACK log tokens-per-second etc.)
 grep -iE 'litert|mediapipe|llm|xnnpack|tflite|gpu delegate|tok' "$OUT/logcat-full.txt" > "$OUT/inference.txt" || true

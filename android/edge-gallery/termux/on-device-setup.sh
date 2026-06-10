@@ -32,8 +32,13 @@ echo "Connected to self: $(adb shell getprop ro.product.model)"
 
 echo "==> Fetching the toolkit"
 REPO_DIR="$HOME/infra-automation"
-if [ -d "$REPO_DIR/.git" ]; then
-  git -C "$REPO_DIR" pull --ff-only
+if [ -d "$REPO_DIR" ]; then
+  if [ -d "$REPO_DIR/.git" ]; then
+    git -C "$REPO_DIR" pull --ff-only
+  else
+    echo "ERROR: $REPO_DIR exists but is not a git repository. Move it aside and retry." >&2
+    exit 1
+  fi
 else
   git clone --depth 1 https://github.com/muffy86/infra-automation "$REPO_DIR"
 fi

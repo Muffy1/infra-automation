@@ -19,8 +19,10 @@ APK_URL=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
   | grep -o '"browser_download_url": *"[^"]*\.apk"' | head -1 | cut -d'"' -f4)
 [ -n "$APK_URL" ] || { echo "ERROR: no APK asset found in latest release" >&2; exit 1; }
 
-TMP_APK=$(mktemp --suffix=.apk)
-trap 'rm -f "$TMP_APK"' EXIT
+# mktemp -d is portable (BSD/macOS lacks GNU's --suffix)
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+TMP_APK="$TMP_DIR/gallery.apk"
 curl -fL -o "$TMP_APK" "$APK_URL"
 
 # -r reinstall keeping data, -d allow same/older version, -g grant runtime perms
