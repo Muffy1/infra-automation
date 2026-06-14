@@ -1,0 +1,53 @@
+name: CI — OpenTerminal
+
+on:
+  push:
+    paths:
+      - 'scripts/setup-open-terminal.sh'
+      - '.github/workflows/ci-open-terminal.yml'
+  pull_request:
+    paths:
+      - 'scripts/setup-open-terminal.sh'
+      - '.github/workflows/ci-open-terminal.yml'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint setup script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/setup-open-terminal.sh
+
+  integration-test:
+    name: Integration test (Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start OpenTerminal
+        env:
+          OPEN_TERMINAL_API_KEY: ci-test-key
+        run: bash scripts/setup-open-terminal.sh docker
+
+      - name: Run a test command
+        run: |
+          RESULT=$(curl -sf -X POST http://localhost:8000/execute \
+            -H "Authorization: Bearer ci-test-key" \
+            -H "Content-Type: application/json" \
+            -d '{"command":"echo hello-from-openterminal"}')
+          echo "Response: $RESULT"
+          echo "$RESULT" | grep -q "hello-from-openterminal"
+
+      - name: List workspace files
+        run: |
+          curl -sf http://localhost:8000/files/list?path=/workspace \
+            -H "Authorization: Bearer ci-test-key"
+
+      - name: Stop container
+        if: always()
+        run: docker stop open-terminal || true
