@@ -47,7 +47,7 @@ if [[ "$INSTALL_MODE" == "docker" ]]; then
     --name open-terminal \
     --restart unless-stopped \
     -p "${PORT}:8000" \
-    -e "API_KEY=${API_KEY}" \
+    -e "OPEN_TERMINAL_API_KEY=${API_KEY}" \
     -v open_terminal_workspace:/workspace \
     ghcr.io/open-webui/open-terminal:latest
 
@@ -58,7 +58,7 @@ if [[ "$INSTALL_MODE" == "docker" ]]; then
   printf '  curl -X POST http://localhost:%s/execute \\\n' "${PORT}"
   printf '    -H "Authorization: Bearer %s" \\\n' "${API_KEY}"
   printf '    -H "Content-Type: application/json" \\\n'
-  printf "    -d '{\"command\":\"echo hello from OpenTerminal\"}'\n"
+  printf "    -d '{\"command\":\"echo hello from OpenTerminal\"}'\'\n"
 
 elif [[ "$INSTALL_MODE" == "pip" ]]; then
   echo "[open-terminal] Installing via pip in a virtual environment..."
