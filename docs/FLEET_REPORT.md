@@ -60,6 +60,24 @@
 ### 6. Default Branches
 - All non-fork, non-archived repos are on `main` (0 repos on `master`)
 
+### 7. CI/CD Scaffolding
+- **CI caller workflows**: Added to 60+ repos (ci.yml referencing infra-automation reusable workflows)
+- **CODEOWNERS**: Added to 60+ repos (owner: muffy86)
+- **Dependabot**: Added to 60+ repos (weekly GitHub Actions updates)
+- **Language detection**: Node.js/TS → ci-node.yml, Python → ci-python.yml, etc.
+
+### 8. Files Created Per Repo
+| File | Coverage |
+|---|---|
+| .github/CODEOWNERS | 60+ repos |
+| .github/dependabot.yml | 60+ repos |
+| .github/workflows/ci.yml | 60+ repos |
+| LICENSE (MIT) | 22 repos (40 still need it) |
+| SECURITY.md | 60+ repos |
+
+### 9. Reusable Workflow Reference
+https://github.com/muffy86/infra-automation/tree/main/.github/workflows
+
 ## What Requires Manual Action
 
 | Task | How |
@@ -74,3 +92,4 @@
 - `muffy86/template-python-ml-api` - FastAPI + Pydantic v2 + AI client
 
 All templates have provider-agnostic AI clients (ollama/openai/anthropic/venice/groq/openrouter).
+
