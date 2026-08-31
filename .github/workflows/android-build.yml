@@ -1,0 +1,110 @@
+name: CI — Android (reusable)
+
+# Reusable Android CI workflow for the Muffy1 org.
+# Call from any Android repo:
+#
+#   jobs:
+#     android:
+#       uses: Muffy1/infra-automation/.github/workflows/android-build.yml@main
+#       with:
+#         java-version: "17"
+#         build-variant: "Debug"
+#         gradle-args: "assembleDebug"
+#       secrets:
+#         SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}   # optional
+#         SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+#         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+#         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+#
+# NOTE: every action is SHA-pinned to a specific commit (no mutable tags),
+# per the org's supply-chain policy. Bump intentionally, verify the SHA.
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "JDK version (17 for AGP 8.x, 21 for AGP 8.13+/Kotlin 2.2+)"
+        type: string
+        default: "17"
+      working-directory:
+        description: "Subdirectory containing settings.gradle(.kts)"
+        type: string
+        default: "."
+      gradle-args:
+        description: "Gradle tasks to run (e.g. assembleDebug, testDebugUnitTest)"
+        type: string
+        default: "assembleDebug"
+      build-variant:
+        description: "Variant label for artifact naming (Debug|Release)"
+        type: string
+        default: "Debug"
+      artifact-name:
+        description: "Artifact name override; default <repo>-<variant>"
+        type: string
+        default: ""
+      enable-cache:
+        description: "Enable Gradle build cache + configuration cache"
+        type: boolean
+        default: true
+      timeout-minutes:
+        description: "Job timeout"
+        type: number
+        default: 30
+    secrets:
+      SIGNING_KEYSTORE_B64:
+        required: false
+      SIGNING_KEYSTORE_PASSWORD:
+        required: false
+      SIGNING_KEY_ALIAS:
+        required: false
+      SIGNING_KEY_PASSWORD:
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-disabled: ${{ !inputs.enable-cache }}
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build (${{ inputs.gradle-args }})
+        run: ./gradlew --no-daemon --stacktrace ${{ inputs.gradle-args }}
+        env:
+          # Only expose signing secrets when the caller actually needs release signing.
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Upload APK artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-name != '' && inputs.artifact-name || format('{0}-{1}', github.event.repository.name, inputs.build-variant) }}
+          path: |
+            ${{ inputs.working-directory }}/app/build/outputs/apk/**/*.apk
+            ${{ inputs.working-directory }}/app/build/outputs/mapping/**/mapping.txt
+          if-no-files-found: error
+          retention-days: 14
