@@ -40,7 +40,7 @@ jobs:
 
       - name: Update summary issue
         if: steps.find-issue.outputs.issue-number
-        uses: peter-evans/create-or-update-comment@v2
+        uses: peter-evans/create-or-update-comment@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ steps.find-issue.outputs.issue-number }}
