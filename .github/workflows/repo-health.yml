@@ -1,0 +1,38 @@
+name: repo-health
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required files
+        id: validate
+        run: |
+          missing=""
+          for f in .github/dependabot.yml AGENTS.md .github/copilot-instructions.md; do
+            [ -f "$f" ] || missing="$missing $f"
+          done
+          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if required files are missing
+        if: steps.validate.outputs.missing != ''
+        run: |
+          echo "::error::Missing required files:${{ steps.validate.outputs.missing }}"
+          exit 1
+
+      - name: Bash syntax check on shell scripts
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            bash -n "$f" || { echo "::error::Syntax error in $f"; failed=1; }
+          done < <(git ls-files '*.sh')
+          exit $failed
