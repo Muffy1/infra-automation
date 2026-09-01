@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vscode-copilot-mcp/main/schema.json",
+  "servers": {
+    "exa": {
+      "type": "http",
+      "url": "http://localhost:3001/mcp",
+      "headers": { "Authorization": "Bearer ${EXA_API_KEY}" }
+    },
+    "kortix": {
+      "type": "http",
+      "url": "http://localhost:8091/mcp",
+      "headers": { "Authorization": "Bearer ${KORTIX_PAT}" }
+    },
+    "open-websearch": {
+      "type": "http",
+      "url": "http://localhost:8093/mcp"
+    },
+    "termux-mcp": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080",
+      "headers": { "Authorization": "Bearer ${TERMUX_MCP_AUTH_TOKEN}" }
+    }
+  }
+}
