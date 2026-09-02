@@ -22,10 +22,8 @@ jobs:
 
       - name: Run gitleaks
         id: gitleaks
-        uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        run: |
+          docker run --rm -v "${PWD}:/path" zricethezap/gitleaks:latest detect --source /path --redact
 
       - name: Find or create daily-summary issue
         id: find-issue
