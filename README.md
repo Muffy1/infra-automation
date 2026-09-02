@@ -1,6 +1,6 @@
 # infra-automation
 
-**Central reusable GitHub Actions workflows and provisioning scripts for `muffy86/*`.**
+**Central reusable GitHub Actions workflows and provisioning scripts for `Muffy1/*`.**
 
 This repo is the automation backbone. Every other repo can call into it
 with one line:
@@ -10,11 +10,29 @@ with one line:
 on: [push, pull_request]
 jobs:
   ci:
-    uses: muffy86/infra-automation/.github/workflows/ci-node.yml@main
+    uses: Muffy1/infra-automation/.github/workflows/ci-node.yml@main
     with:
       node-version: "20"
       package-manager: pnpm
 ```
+
+Android (Gradle APK):
+
+```yaml
+jobs:
+  android:
+    uses: Muffy1/infra-automation/.github/workflows/android-build.yml@main
+    with:
+      java-version: "17"
+      gradle-args: "assembleDebug"
+    secrets:
+      SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+      SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+```
+
+Signing secrets are optional — `assembleDebug` works without them. `SIGNING_KEYSTORE_B64` is the base64-encoded `.jks` stored as a secret on the caller repo. See [docs/USAGE.md](docs/USAGE.md).
 
 ## Layout
 
@@ -24,6 +42,7 @@ infra-automation/
 │   ├── ci-node.yml
 │   ├── ci-rust.yml
 │   ├── ci-python.yml
+│   ├── android-build.yml
 │   ├── security.yml
 │   ├── stale.yml
 │   ├── release.yml
@@ -49,6 +68,7 @@ infra-automation/
 | Node/TS  | `ci-node.yml`           | Next.js, React, Vite, Express     |
 | Rust     | `ci-rust.yml`           | Native services, CLIs, WASM       |
 | Python   | `ci-python.yml`         | FastAPI, ML, scripts              |
+| Android  | `android-build.yml`     | Gradle APK builds                 |
 | Security | `security.yml`          | gitleaks + CodeQL                 |
 | Hygiene  | `stale.yml`             | Stale issue/PR close              |
 | Release  | `release.yml`           | Tag → build → GitHub Release      |

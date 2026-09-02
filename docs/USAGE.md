@@ -7,8 +7,8 @@
 gh auth login
 
 # 2. Run the provisioner
-gh repo clone muffy86/infra-automation
-bash infra-automation/scripts/provision-new-repo.sh muffy86/my-new-repo --stack node
+gh repo clone Muffy1/infra-automation
+bash infra-automation/scripts/provision-new-repo.sh Muffy1/my-new-repo --stack node
 ```
 
 That command will:
@@ -24,29 +24,29 @@ That command will:
 
 ```bash
 # 1. Clone
-gh repo clone muffy86/some-existing-repo /tmp/some-existing-repo
+gh repo clone Muffy1/some-existing-repo /tmp/some-existing-repo
 cd /tmp/some-existing-repo
 
 # 2. Run provisioner (it detects existing repos and updates them)
-bash /path/to/infra-automation/scripts/provision-new-repo.sh muffy86/some-existing-repo
+bash /path/to/infra-automation/scripts/provision-new-repo.sh Muffy1/some-existing-repo
 
 # 3. (Optional) Audit
-gh repo view muffy86/some-existing-repo
+gh repo view Muffy1/some-existing-repo
 ```
 
 ## Re-apply protection after manual fiddling
 
 ```bash
-bash scripts/protect-main.sh muffy86/repo
+bash scripts/protect-main.sh Muffy1/repo
 ```
 
 ## Sync topics to a batch of repos
 
 ```bash
 cat repos.txt
-# muffy86/foo
-# muffy86/bar
-# muffy86/baz
+# Muffy1/foo
+# Muffy1/bar
+# Muffy1/baz
 
 bash scripts/sync-topics.sh --from-file repos.txt
 ```
@@ -54,8 +54,35 @@ bash scripts/sync-topics.sh --from-file repos.txt
 ## Audit an open queue
 
 ```bash
-bash scripts/audit-issues.sh muffy86/repo --days 30
+bash scripts/audit-issues.sh Muffy1/repo --days 30
 ```
+
+## Call the reusable Android workflow
+
+```yaml
+jobs:
+  android:
+    uses: Muffy1/infra-automation/.github/workflows/android-build.yml@main
+    with:
+      java-version: "17"
+      gradle-args: "assembleDebug"
+    secrets:
+      SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+      SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+```
+
+Signing secrets are optional. This workflow injects them as environment variables only; it does not decode the keystore to a file. Caller Gradle must consume the env vars. Do not commit keystores.
+
+| Secret | Purpose |
+| ------ | ------- |
+| `SIGNING_KEYSTORE_B64` | Base64 of the `.jks` keystore (encode on the caller) |
+| `SIGNING_KEYSTORE_PASSWORD` | Keystore password |
+| `SIGNING_KEY_ALIAS` | Key alias |
+| `SIGNING_KEY_PASSWORD` | Key password |
+
+Use `apk-path` and `mapping-path` to override artifact globs (relative to `working-directory`). Set `upload-artifacts: false` for test-only runs that should not upload APKs.
 
 ## When the reusable workflow changes
 
