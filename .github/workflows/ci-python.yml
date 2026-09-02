@@ -107,7 +107,9 @@ jobs:
           python -m build
 
       - name: Publish to PyPI
-        if: inputs.build && secrets.pypi-token
+        if: inputs.build && env.PYPI_TOKEN != ''
+        env:
+          PYPI_TOKEN: ${{ secrets.pypi-token }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.pypi-token }}
+          password: ${{ env.PYPI_TOKEN }}
