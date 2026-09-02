@@ -11,10 +11,20 @@ name: CI — Android (reusable)
 #         build-variant: "Debug"
 #         gradle-args: "assembleDebug"
 #       secrets:
-#         SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}   # optional
+#         SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}   # optional; base64 of the .jks
 #         SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
 #         SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
 #         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+#
+# Optional caller secrets (all optional; do not commit keystores):
+#   SIGNING_KEYSTORE_B64       — base64 of the .jks keystore
+#   SIGNING_KEYSTORE_PASSWORD
+#   SIGNING_KEY_ALIAS
+#   SIGNING_KEY_PASSWORD
+#
+# This workflow injects those values as environment variables only. It does
+# not decode the keystore to a file. The caller Gradle build must consume
+# the env vars (for example, decode SIGNING_KEYSTORE_B64 itself).
 #
 # NOTE: every action is SHA-pinned to a specific commit (no mutable tags),
 # per the org's supply-chain policy. Bump intentionally, verify the SHA.
@@ -50,6 +60,18 @@ on:
         description: "Job timeout"
         type: number
         default: 30
+      apk-path:
+        description: "Glob of APKs to upload, relative to working-directory"
+        type: string
+        default: "app/build/outputs/apk/**/*.apk"
+      mapping-path:
+        description: "Glob of ProGuard/R8 mapping files, relative to working-directory"
+        type: string
+        default: "app/build/outputs/mapping/**/mapping.txt"
+      upload-artifacts:
+        description: "Upload APK and mapping artifacts after a successful build"
+        type: boolean
+        default: true
     secrets:
       SIGNING_KEYSTORE_B64:
         required: false
@@ -59,6 +81,10 @@ on:
         required: false
       SIGNING_KEY_PASSWORD:
         required: false
+
+concurrency:
+  group: android-build-${{ github.repository }}-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -92,19 +118,18 @@ jobs:
       - name: Build (${{ inputs.gradle-args }})
         run: ./gradlew --no-daemon --stacktrace ${{ inputs.gradle-args }}
         env:
-          # Only expose signing secrets when the caller actually needs release signing.
           SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
           SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
       - name: Upload APK artifacts
-        if: always()
+        if: ${{ success() && inputs.upload-artifacts }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.artifact-name != '' && inputs.artifact-name || format('{0}-{1}', github.event.repository.name, inputs.build-variant) }}
           path: |
-            ${{ inputs.working-directory }}/app/build/outputs/apk/**/*.apk
-            ${{ inputs.working-directory }}/app/build/outputs/mapping/**/mapping.txt
-          if-no-files-found: error
+            ${{ inputs.working-directory }}/${{ inputs.apk-path }}
+            ${{ inputs.working-directory }}/${{ inputs.mapping-path }}
+          if-no-files-found: warn
           retention-days: 14
