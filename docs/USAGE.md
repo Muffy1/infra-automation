@@ -66,6 +66,8 @@ jobs:
     with:
       java-version: "17"
       gradle-args: "assembleDebug"
+      # validate-wrapper: true  # default after checkout
+      # aab-path: "app/build/outputs/bundle/**/*.aab"
     secrets:
       SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
       SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
@@ -73,7 +75,7 @@ jobs:
       SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 ```
 
-Signing secrets are optional. This workflow injects them as environment variables only; it does not decode the keystore to a file. Caller Gradle must consume the env vars. Do not commit keystores.
+Signing secrets are optional. When `SIGNING_KEYSTORE_B64` is non-empty, the workflow decodes it to `${{ runner.temp }}/release.keystore` and sets `SIGNING_KEYSTORE_FILE` (absolute path) in `GITHUB_ENV`. Prefer `SIGNING_KEYSTORE_FILE` in Gradle when set; B64 and password/alias/key password env vars are still passed to the Build step. Do not commit keystores.
 
 | Secret | Purpose |
 | ------ | ------- |
@@ -82,7 +84,7 @@ Signing secrets are optional. This workflow injects them as environment variable
 | `SIGNING_KEY_ALIAS` | Key alias |
 | `SIGNING_KEY_PASSWORD` | Key password |
 
-Use `apk-path` and `mapping-path` to override artifact globs (relative to `working-directory`). Set `upload-artifacts: false` for test-only runs that should not upload APKs.
+`validate-wrapper` (default `true`) runs `gradle/actions/wrapper-validation` after checkout. Use `apk-path`, `aab-path`, and `mapping-path` to override artifact globs (relative to `working-directory`). Set `upload-artifacts: false` for test-only runs that should not upload APKs/AABs.
 
 ## When the reusable workflow changes
 

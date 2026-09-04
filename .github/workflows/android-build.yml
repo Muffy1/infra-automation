@@ -22,9 +22,11 @@ name: CI — Android (reusable)
 #   SIGNING_KEY_ALIAS
 #   SIGNING_KEY_PASSWORD
 #
-# This workflow injects those values as environment variables only. It does
-# not decode the keystore to a file. The caller Gradle build must consume
-# the env vars (for example, decode SIGNING_KEYSTORE_B64 itself).
+# When SIGNING_KEYSTORE_B64 is set, this workflow decodes it to
+# ${{ runner.temp }}/release.keystore and exports SIGNING_KEYSTORE_FILE
+# (absolute path) via GITHUB_ENV. Callers should prefer SIGNING_KEYSTORE_FILE
+# when set; B64 and password/alias/key password env vars remain available.
+# Never invent or commit keystore material.
 #
 # NOTE: every action is SHA-pinned to a specific commit (no mutable tags),
 # per the org's supply-chain policy. Bump intentionally, verify the SHA.
@@ -64,12 +66,20 @@ on:
         description: "Glob of APKs to upload, relative to working-directory"
         type: string
         default: "app/build/outputs/apk/**/*.apk"
+      aab-path:
+        description: "Glob of AABs to upload, relative to working-directory"
+        type: string
+        default: "app/build/outputs/bundle/**/*.aab"
       mapping-path:
         description: "Glob of ProGuard/R8 mapping files, relative to working-directory"
         type: string
         default: "app/build/outputs/mapping/**/mapping.txt"
       upload-artifacts:
-        description: "Upload APK and mapping artifacts after a successful build"
+        description: "Upload APK/AAB and mapping artifacts after a successful build"
+        type: boolean
+        default: true
+      validate-wrapper:
+        description: "Validate the Gradle wrapper checksums after checkout"
         type: boolean
         default: true
     secrets:
@@ -101,6 +111,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate Gradle Wrapper
+        if: ${{ inputs.validate-wrapper }}
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
       - name: Set up JDK ${{ inputs.java-version }}
         uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
@@ -115,6 +129,15 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x ./gradlew
 
+      - name: Decode signing keystore
+        if: ${{ secrets.SIGNING_KEYSTORE_B64 != '' }}
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          KEYSTORE_PATH="${{ runner.temp }}/release.keystore"
+          echo "$SIGNING_KEYSTORE_B64" | base64 -d > "$KEYSTORE_PATH"
+          echo "SIGNING_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+
       - name: Build (${{ inputs.gradle-args }})
         run: ./gradlew --no-daemon --stacktrace ${{ inputs.gradle-args }}
         env:
@@ -123,13 +146,14 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
-      - name: Upload APK artifacts
+      - name: Upload APK/AAB artifacts
         if: ${{ success() && inputs.upload-artifacts }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.artifact-name != '' && inputs.artifact-name || format('{0}-{1}', github.event.repository.name, inputs.build-variant) }}
           path: |
             ${{ inputs.working-directory }}/${{ inputs.apk-path }}
+            ${{ inputs.working-directory }}/${{ inputs.aab-path }}
             ${{ inputs.working-directory }}/${{ inputs.mapping-path }}
           if-no-files-found: warn
           retention-days: 14
