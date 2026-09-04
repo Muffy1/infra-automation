@@ -16,7 +16,7 @@ jobs:
       package-manager: pnpm
 ```
 
-Android (Gradle APK):
+Android (Gradle APK/AAB):
 
 ```yaml
 jobs:
@@ -25,6 +25,8 @@ jobs:
     with:
       java-version: "17"
       gradle-args: "assembleDebug"
+      # validate-wrapper: true   # default; set false to skip
+      # aab-path: "app/build/outputs/bundle/**/*.aab"
     secrets:
       SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
       SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
@@ -32,7 +34,7 @@ jobs:
       SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 ```
 
-Signing secrets are optional — `assembleDebug` works without them. `SIGNING_KEYSTORE_B64` is the base64-encoded `.jks` stored as a secret on the caller repo. See [docs/USAGE.md](docs/USAGE.md).
+Signing secrets are optional — `assembleDebug` works without them. When `SIGNING_KEYSTORE_B64` is set, the workflow decodes it to `SIGNING_KEYSTORE_FILE` under `${{ runner.temp }}` (prefer that path in Gradle when present) and still injects the B64/password/alias env vars. Wrapper validation runs by default after checkout. See [docs/USAGE.md](docs/USAGE.md).
 
 ## Layout
 
@@ -68,7 +70,7 @@ infra-automation/
 | Node/TS  | `ci-node.yml`           | Next.js, React, Vite, Express     |
 | Rust     | `ci-rust.yml`           | Native services, CLIs, WASM       |
 | Python   | `ci-python.yml`         | FastAPI, ML, scripts              |
-| Android  | `android-build.yml`     | Gradle APK builds                 |
+| Android  | `android-build.yml`     | Gradle APK/AAB builds             |
 | Security | `security.yml`          | gitleaks + CodeQL                 |
 | Hygiene  | `stale.yml`             | Stale issue/PR close              |
 | Release  | `release.yml`           | Tag → build → GitHub Release      |
