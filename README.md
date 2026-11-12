@@ -53,11 +53,13 @@ infra-automation/
 │   ├── provision-new-repo.sh
 │   ├── protect-main.sh
 │   ├── sync-topics.sh
-│   └── audit-issues.sh
+│   ├── audit-issues.sh
+│   └── install-cli-coding-agents.sh
 ├── docs/
 │   ├── USAGE.md
 │   ├── HARDWARE.md
-│   └── MIGRATION.md
+│   ├── MIGRATION.md
+│   └── cli-coding-agents/     # terminal agent install + community map
 └── .github/ISSUE_TEMPLATE/
     ├── infra-task.md
     └── bug.md
@@ -91,3 +93,21 @@ infra-automation/
    folder, Dependabot, and replaces the workflows with `uses:` calls
    into this repo.
 3. From then on, all CI/CD changes happen here, in one place.
+
+## CLI coding agents
+
+`scripts/install-cli-coding-agents.sh` installs the Linux terminal agents from
+[awesome-cli-coding-agents](https://github.com/bradAGI/awesome-cli-coding-agents)
+that publish an official package or release binary (Claude Code, Codex, Gemini
+CLI, OpenCode, Aider, Goose, Pi, Hermes, Crush, Cursor Agent, and the rest of
+the set in the docs). Commands land on `/usr/local/bin`. API keys stay in the
+environment.
+
+```bash
+./scripts/install-cli-coding-agents.sh
+./scripts/install-cli-coding-agents.sh --check
+```
+
+Guide: [docs/cli-coding-agents/README.md](docs/cli-coding-agents/README.md).
+Community map and the tools that stay manual:
+[docs/cli-coding-agents/COMMUNITY.md](docs/cli-coding-agents/COMMUNITY.md).

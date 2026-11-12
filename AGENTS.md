@@ -29,7 +29,7 @@ Both human contributors and autonomous agents commit here. Follow these rules.
 
 ## Capability map
 - `scripts/` — reusable setup/automation scripts (OpenTerminal, Notte, ADB,
-  Z Fold Edge Gallery).
+  Z Fold Edge Gallery, CLI coding agents).
 - `android/` — on-device tooling (Termux, wireless ADB, model sideloading).
 - `.github/workflows/` — CI and scheduled automation.
 - `AGENTS.md` — this file; `.github/copilot-instructions.md` — Copilot context.
