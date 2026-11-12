@@ -45,11 +45,12 @@ NPM_TOOLS=(
   "@ampcode/cli|amp"
 )
 
-# PyPI distribution|comma-separated commands
+# PyPI distribution|comma-separated commands[|extra requirement]
+# open-interpreter still imports pkg_resources, which left setuptools in v82.
 PY_TOOLS=(
   "hermes-agent|hermes,hermes-agent"
   "aider-chat|aider"
-  "open-interpreter|interpreter"
+  "open-interpreter|interpreter|setuptools<81"
   "openhands|openhands"
   "mistral-vibe|vibe"
   "deepagents-code|dcode,deepagents-code"
@@ -176,22 +177,34 @@ install_npm_tools() {
 }
 
 install_python_tools() {
-  local entry pkg bins bin
+  local entry pkg rest bins extra bin
+  local -a uv_args=()
   export UV_TOOL_BIN_DIR="$ROOT_BIN"
   for entry in "${PY_TOOLS[@]}"; do
     pkg="${entry%%|*}"
-    bins="${entry#*|}"
+    rest="${entry#*|}"
+    extra=""
+    if [[ "$rest" == *"|"* ]]; then
+      bins="${rest%%|*}"
+      extra="${rest#*|}"
+    else
+      bins="$rest"
+    fi
     bin="${bins%%,*}"
     selected python "$bins" || continue
     if [[ "$UPGRADE" -eq 0 ]] && present "$bin"; then
       log "$bin already installed"
     else
-      log "uv tool install $pkg"
+      uv_args=(tool install)
       if [[ "$UPGRADE" -eq 1 ]]; then
-        uv tool install --upgrade "$pkg" || { note_fail "uv $pkg"; continue; }
-      else
-        uv tool install "$pkg" || { note_fail "uv $pkg"; continue; }
+        uv_args+=(--upgrade)
       fi
+      if [[ -n "$extra" ]]; then
+        uv_args+=(--with "$extra")
+      fi
+      uv_args+=("$pkg")
+      log "uv ${uv_args[*]}"
+      uv "${uv_args[@]}" || { note_fail "uv $pkg"; continue; }
     fi
     link_cmds "$bins"
   done
@@ -300,9 +313,11 @@ version_of() {
     printf 'missing'
     return 0
   fi
-  out="$(timeout 25 "$cmd" --version 2>&1 | head -n 1 || true)"
+  # -k sends SIGKILL when a TUI ignores SIGTERM (amp --version does).
+  # stdout only: several CLIs print deprecation warnings on stderr.
+  out="$(timeout -k 5s 20s "$cmd" --version 2>/dev/null | head -n 1 || true)"
   if [[ -z "$out" ]]; then
-    out="$(timeout 25 "$cmd" version 2>&1 | head -n 1 || true)"
+    out="$(timeout -k 5s 20s "$cmd" version 2>/dev/null | head -n 1 || true)"
   fi
   if [[ -z "$out" ]]; then
     printf 'installed'
@@ -401,6 +416,15 @@ revert_tools() {
   log "Provider config directories were left in place."
 }
 
+tool_bins() {
+  local rest="${1#*|}"
+  if [[ "$rest" == *"|"* ]]; then
+    printf '%s' "${rest%%|*}"
+  else
+    printf '%s' "$rest"
+  fi
+}
+
 list_ids() {
   local entry
   printf 'groups:\n'
@@ -411,7 +435,7 @@ list_ids() {
   done
   printf 'python commands:\n'
   for entry in "${PY_TOOLS[@]}"; do
-    printf '  %s\n' "${entry#*|}"
+    printf '  %s\n' "$(tool_bins "$entry")"
   done
   printf 'binaries:\n'
   printf '  opencode goose cursor-agent agent crush\n'
@@ -468,7 +492,7 @@ if selected python ""; then
 else
   entry=""
   for entry in "${PY_TOOLS[@]}"; do
-    if selected python "${entry#*|}"; then
+    if selected python "$(tool_bins "$entry")"; then
       python_requested=1
       break
     fi

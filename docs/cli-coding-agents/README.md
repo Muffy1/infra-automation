@@ -60,10 +60,10 @@ Re-running the installer skips anything whose command is already on `PATH`.
 | `amp` | Amp | npm `@ampcode/cli` | Amp account |
 | `hermes` | Hermes Agent | PyPI `hermes-agent` (Nous Research) | Provider key via `hermes` setup |
 | `aider` | Aider | PyPI `aider-chat` | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
-| `interpreter` | Open Interpreter | PyPI `open-interpreter` | `OPENAI_API_KEY` |
+| `interpreter` | Open Interpreter | PyPI `open-interpreter` (with `setuptools<81`, which still provides `pkg_resources`) | `OPENAI_API_KEY` |
 | `openhands` | OpenHands CLI | PyPI `openhands` | `openhands` model setup |
 | `vibe` | Mistral Vibe | PyPI `mistral-vibe` | `MISTRAL_API_KEY` |
-| `dcode` | Deep Agents Code | PyPI `deepagents-code` | Any tool-calling model key |
+| `dcode` | Deep Agents Code | PyPI `deepagents-code` (newest release this Python can run; 0.2.x needs Python 3.14) | Any tool-calling model key |
 | `tau` | Tau | PyPI `tau-ai` | Provider key |
 | `gptme` | gptme | PyPI `gptme` | `OPENAI_API_KEY` or another provider |
 | `opencode` | OpenCode | `https://opencode.ai/install` | Provider key inside OpenCode |
