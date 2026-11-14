@@ -43,6 +43,7 @@ NPM_TOOLS=(
   "@kilocode/cli|kilo,kilocode"
   "@beads/bd|bd"
   "@ampcode/cli|amp"
+  "@ralph-orchestrator/ralph-cli|ralph"
 )
 
 # PyPI distribution|comma-separated commands[|extra requirement]
@@ -237,6 +238,17 @@ install_goose() {
   link_bin goose "$ROOT_BIN/goose" || note_fail "link goose"
 }
 
+install_herdr() {
+  if [[ "$UPGRADE" -eq 0 ]] && present herdr; then
+    log "herdr already installed"
+    link_bin herdr "$ROOT_BIN/herdr" || note_fail "link herdr"
+    return 0
+  fi
+  log "Installing Herdr"
+  curl -fsSL https://herdr.dev/install.sh | env HERDR_INSTALL_DIR="$ROOT_BIN" sh
+  link_bin herdr "$ROOT_BIN/herdr" || note_fail "link herdr"
+}
+
 install_cursor_agent() {
   if [[ "$UPGRADE" -eq 0 ]] && present cursor-agent; then
     log "cursor-agent already installed"
@@ -371,6 +383,8 @@ run_check() {
   cmd_check cursor-agent CURSOR_API_KEY
   cmd_check agent CURSOR_API_KEY
   cmd_check crush ""
+  cmd_check herdr ""
+  cmd_check ralph ""
   cmd_check uv ""
   printf '\nKeys show set/unset only. Values are never printed.\n'
   printf 'Login commands and docs: docs/cli-coding-agents/README.md\n'
@@ -412,7 +426,7 @@ revert_tools() {
       npm uninstall -g --prefix "$PREFIX" "$pkg" || true
     done
   fi
-  rm -f "$ROOT_BIN/crush" "$ROOT_BIN/goose" || true
+  rm -f "$ROOT_BIN/crush" "$ROOT_BIN/goose" "$ROOT_BIN/herdr" || true
   log "Provider config directories were left in place."
 }
 
@@ -438,7 +452,7 @@ list_ids() {
     printf '  %s\n' "$(tool_bins "$entry")"
   done
   printf 'binaries:\n'
-  printf '  opencode goose cursor-agent agent crush\n'
+  printf '  opencode goose cursor-agent agent crush herdr\n'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -531,6 +545,9 @@ if selected cursor "cursor-agent,agent"; then
 fi
 if selected crush "crush"; then
   install_crush || note_fail "crush"
+fi
+if selected herdr "herdr"; then
+  install_herdr || note_fail "herdr"
 fi
 
 log "Install pass finished with ${failures} failure(s)."

@@ -105,8 +105,19 @@ the coding CLIs.
 
 **Harnesses that drive the CLIs above.** Session managers, Ralph loops, and
 sandboxes expect `claude`, `codex`, `opencode`, or `goose` to exist first.
-Install the agent, then add a harness from the upstream section that matches
-the way you want to run it.
+This provisioner adds two of them, and leaves the rest for a manual install
+from the upstream section that matches the way you want to run it.
+
+- Parallel runner: [Herdr](https://github.com/herdrdev/herdr), command `herdr`.
+  One Rust binary. It owns the terminals the agents already use.
+- Autonomous loop: [Ralph Orchestrator](https://github.com/mikeyobrien/ralph-orchestrator),
+  command `ralph`. It keeps an installed backend (`claude`, `codex`, `gemini`,
+  `opencode`, `pi`, and others) in a loop until the task is done.
+- Harness already present: Beads (`bd`) for a local issue graph.
+
+DeerFlow, claude-flow, Symphony, Orca, Multica, AionUi, cmux, Headroom, and
+OpenViking stay out of the installer. Desktop shells in those sections do not
+fit a Linux host that already has the CLIs.
 
 **Packages whose names collide with the real tools.**
 

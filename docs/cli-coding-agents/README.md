@@ -57,6 +57,8 @@ Re-running the installer skips anything whose command is already on `PATH`.
 | `clite` | Cline CLI | npm `@cline/cli` | Provider key (experimental CLI) |
 | `kilo` | Kilo Code CLI | npm `@kilocode/cli` | `kilo` login or a provider key |
 | `bd` | Beads | npm `@beads/bd` | Local issue graph, no model key |
+| `ralph` | Ralph Orchestrator | npm `@ralph-orchestrator/ralph-cli` | Uses a coding CLI already on `PATH` |
+| `herdr` | Herdr | `https://herdr.dev/install.sh` | None. It runs the agents you already installed |
 | `amp` | Amp | npm `@ampcode/cli` | Amp account |
 | `hermes` | Hermes Agent | PyPI `hermes-agent` (Nous Research) | Provider key via `hermes` setup |
 | `aider` | Aider | PyPI `aider-chat` | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
@@ -70,6 +72,24 @@ Re-running the installer skips anything whose command is already on `PATH`.
 | `goose` | Goose | aaif-goose stable CLI installer | `goose configure` (skipped here) |
 | `agent`, `cursor-agent` | Cursor Agent | `https://cursor.com/install` | `agent login` or `CURSOR_API_KEY` |
 | `crush` | Crush | charmbracelet/crush release tarball | Provider key in Crush config |
+
+## Optional layers
+
+The catalog's session managers, loops, and infrastructure are not installed as a
+set. Two Linux tools from those sections are:
+
+- **Herdr** (`herdr`) is the parallel runner. It is a terminal multiplexer that
+  keeps Claude Code, Codex, OpenCode, and the other CLIs in panes and shows
+  which one is working, blocked, or idle. Start it in a repo with `herdr`.
+  Detach with `Ctrl-b q`. It does not replace the agents.
+- **Ralph** (`ralph`) is the autonomous loop. It drives an agent you already
+  have until the task prints `LOOP_COMPLETE` or it hits an iteration cap.
+  `ralph init --backend claude` writes a project config. `ralph run -p "..."`
+  starts the loop. `ralph doctor` checks that a backend CLI is on `PATH`.
+
+Beads (`bd`) is the harness already installed for long-horizon task memory.
+Headroom, sandboxes, and the desktop orchestrators stay manual. Pick one from
+[COMMUNITY.md](COMMUNITY.md) when you need it.
 
 `kilocode` is the same binary as `kilo`. `deepagents-code` is the same binary
 as `dcode`. `hermes-agent` is an extra entry point from the Hermes package.
